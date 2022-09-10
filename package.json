@@ -1,0 +1,22 @@
+{
+  "name": "ef-vue-crust",
+  "version": "1.0.0",
+  "description": "Allows Vue3 to communicate with Entity Framework Core data models via convention",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freer4/ef-vue-crust.git"
+  },
+  "keywords": [
+    "vue3"
+  ],
+  "author": "Freer4",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/freer4/ef-vue-crust/issues"
+  },
+  "homepage": "https://github.com/freer4/ef-vue-crust#readme"
+}
