@@ -13,7 +13,7 @@ Define your models as you do today, using EfVueMantle.ModelBase as your base cla
 
 ### EfVueMantle 
 
-[Get is on GitHub](https://github.com/freer4/ef-vue-mantle) or Nuget.org
+[Get it on GitHub](https://github.com/freer4/ef-vue-mantle) or Nuget.org
 
 Mantle provides bases for model, controller, and service for each data type. This scaffolds the basic functionality allowing Crust to explore data via convention. It also crafts Javascript class files for Crust, allowing your Vue3 application to understand your entire data structure.
 
@@ -81,12 +81,36 @@ export default {
         //this sets up a local virtual "table" for "PostModel" if it hasn't been used before
         //which returns a proxy object to that local virtual table
         //and finally we ask for that data as a Vue reactive array 
-        const post = Database[PostModel.name].array;
+        const posts = Database[PostModel.name].array;
 
         return {
-            post,
+            posts,
         };
     }
 }
 </script>
+```
+
+#### Wait, does this posts object have all of our data?
+
+Nope, this example understands that you want to use a Database containing records for your PostModel and will wait patiently for you to access the data before it fetches it. `PostModel` is coming from a JS file created by Mantle that informs Crust exactly what that data will look like without any API calls so far. 
+
+If this is the first time your application has attempted to access the `PostModel` records in the database, an object handling all "database" functionality for it is quietly created in the background and returned to you. None of the actual data posts data has been acquired from the server yet. No calls to the API have been made at all so far.
+
+The `.array` property is a Vue reactive collection of any potential `PostModel` instances. This is empty until you try to access deeper data or otherwise tell `Database` to go and get data. For example, if you know the PrimaryKey (Id) for the post you want to access, `posts[id]` will: 
+
+- Check the local `_database[PostModel]` object, an in-memory data collection, for the existance of this Id. 
+- If it does not exist, it will create an empty PostModel instance with this Id. This reference is returned immediately, allowing you to chain further down the data structure without needing to wait for actual data to be loaded.
+- `Database` will then add this Id to a queue that will use `Connection` to seamlessly ask for the data for your front-end-accessed records from Mantle.
+- When the data is returned from Mantle, it is used to update the existing, corresponding reactive PostModel object, which in turn triggers Vue's UI updates. 
+
+So accessing `posts[id].title` will show an empty string in your vue template until it manages to get the data back from the server, at which point that beautiful Vue renderer will update the UI with the value. That's not ideal, so there are lots of helpers built in to make the user experience even better. 
+
+### Getting started
+
+Connection class looks for a `VUE_APP_MANTLE_URL` setting to know who to talk to, so add the path of your Mantle API root in your .env files: 
+
+```
+VUE_APP_MANTLE_URL=https://localhost:7081/
+
 ```

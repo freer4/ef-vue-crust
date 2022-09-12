@@ -1,8 +1,13 @@
 {
   "name": "ef-vue-crust",
-  "version": "1.0.0",
+  "type": "module",
+  "version": "1.0.13",
   "description": "Allows Vue3 to communicate with Entity Framework Core data models via convention",
   "main": "index.js",
+  "exports": {
+    "." : "./index.js",
+    "./data-types/*": "./lib/data-types/*.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/freer4/ef-vue-crust/issues"
   },
-  "homepage": "https://github.com/freer4/ef-vue-crust#readme"
+  "homepage": "https://github.com/freer4/ef-vue-crust#readme",
+  "dependencies": {
+    "axios": "^0.27.2"
+  }
 }
