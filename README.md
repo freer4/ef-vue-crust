@@ -15,13 +15,13 @@ Define your models as you do today, using EfVueMantle.ModelBase as your base cla
 
 ### EfVueMantle 
 
-[Get it on GitHub](https://github.com/freer4/ef-vue-mantle) or Nuget.org
+[Get it on GitHub](https://github.com/freer4/ef-vue-mantle) or [Nuget.org](https://www.nuget.org/packages/EfVueMantle)
 
 Mantle provides bases for model, controller, and service for each data type. This scaffolds the basic functionality allowing Crust to explore data via convention. It also crafts Javascript class files for Crust, allowing your Vue3 application to understand your entire data structure.
 
 ### ef-vue-crust
 
-[Get it on GitHub](https://github.com/freer4/ef-vue-crust)
+[Get it on GitHub](https://github.com/freer4/ef-vue-crust) or `npm install ef-vue-crust`
 
 Provides interfaces for Vue3 to interact with your defined data models via convention. 
 
