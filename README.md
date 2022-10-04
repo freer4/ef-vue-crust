@@ -51,7 +51,7 @@ I will endeavor to get better performance benchmarks to demonstrate, but for thi
 - Individual client users have access to at most tens- or maybe hundreds- of thousands of records at any given time, but preferably far fewer
 
 
-## Functionality
+## Overview
 
 ### Connection
 
@@ -65,11 +65,11 @@ In conjunction with Connection, Crust Session object is a simple current-user-st
 
 The Crust Database is a proxy that handles dot-notation access to the entire data structure defined by your Mantle model exports.
 
-> Posts[id]Comments[1].Author.Friends[6].DisplayName
+> posts[id].comments[1].author.friends[6].displayName
 
 This juggles between existing data in memory and asking for data from Mantle through the Connection object and the promises it returns. It's all Vue refs and custom proxies, allowing you to ask for data that doesn't exist in the browser yet, and letting Vue reactivity to do its thing without further configuration or worry for you, the developer. 
 
-### Data Types
+### Data types
 
 Custom data types can be defined to allow standardized interaction with .Net data types. 
 
@@ -83,12 +83,35 @@ Built in are a few key types:
 
 - Enum: this is the base for any Enum classes created through Mantle. Stored internally as int:string pairs, similar to C# enums, the setter takes an int and the getter returns a string. There is also a utlity _reverse object that will return the key int for a matching string value. 
 
-- BitArray: this class takes a string of 0s and 1s from Mantle, giving you an array of bools when accessing it. We've used this to implement things like scheduling and permissions flags on the front end. BitArray._out property returns a string of 0s and 1s that C# understands. 
+- Flag: takes a raw int, and returns an array of ints of 2^n. Your record will have access to the array, which you can manipulate. Internally validates that each value is of 2^n.
+- - *static* toArray(value): takes an int value and returns an array of ints of 2^n
+- - *static* toInt(value): takes an array of ints of 2^n and returns an int
+- - *static* toReadable(value, options): takes an array of ints and object of key:value pairs (such as a flag enum), creates a neat little human-friendly string like "one, two, and three"
+
+In Mantle, the decorators for a flag with a matching enum:
+```
+[EfVueEnum(typeof(RoleType))] //your flag enum (shows up in the config in the Crust model properties)
+[EfVuePropertyType("Flag")] //tell Crust to use the flag type
+public int Markings { get; set; } = 0; //whatever number property you're using to store the flag
+```
+
+- BitArray: TODO: reevaluate how this is used  
 
 - Guid: this class is mostly to mark a property as being a C# Guid, though otherwise it behaves as a normal string. The _out property simply returns the string value.
 
 - Point: an object with lattidue and longitude properties. This will likely be extended in the future, but we've used (with a custom JSON formatter on the .Net end) it to cleanly transport Point class data between EFCore models and Vue... views... without needing futher intermediary view models and such with individual lat/long properties defined.  _out simply returns an object with lattidue and longitude properties.
 
+#### Custom data types
+
+You can add your own data types as needed. Put these in a directory named "data-types", adjacent to the directories for models, unums, and dtos output by Mantle. 
+
+In Mantle, decorate the property like this: 
+
+```
+    [EfVuePropertyType("SomeType")]
+```
+
+This will add an include for your custom data-type definition `SomeType`, looking for `/path/to/your/data/data-type/some-type.js`
 
 ### Quick example
 ```
@@ -101,8 +124,7 @@ export default {
     setup() {
         //this sets up a local virtual "table" for "PostModel" if it hasn't been used before
         //which returns a proxy object to that local virtual table
-        //and finally we ask for that data as a Vue reactive array 
-        const posts = Database[PostModel.name].array;
+        const posts = Database[PostModel.name];
 
         return {
             posts,
@@ -118,14 +140,14 @@ Nope, this example understands that you want to use a Database containing record
 
 If this is the first time your application has attempted to access the `PostModel` records in `Database`, an object handling all interactive functionality for it is quietly created in the background and returned to you. None of the actual posts data has been acquired from the server yet. No calls to the API have been made at all so far.
 
-The `.array` property is a Vue reactive collection of any potential `PostModel` instances. This is empty until you try to access deeper data or otherwise tell `Database` to go and get data. For example, if you know the PrimaryKey (Id) for the post you want to access, `posts[id]` will: 
+`posts` is empty until you try to access deeper data or otherwise tell `Database` to go and get data. For example, if you know the PrimaryKey (Id) for the post you want to access, `posts[id]` will: 
 
-- Check the local `_database[PostModel]` object, an in-memory data collection, for the existance of this Id. 
-- If it does not exist, it will create an empty PostModel instance with this Id. This reference is returned immediately, allowing you to chain further down the data structure without needing to wait for actual data to be loaded.
+- Check the local `_database[PostModel]` object, the in-memory data collection, for the existance of this Id. 
+- If it does not exist, it will create an empty `PostModel` instance with this Id. This reference is returned immediately, allowing you to chain further down the data structure.
 - `Database` will then add this Id to a queue that will use `Connection` to seamlessly ask for the data for your front-end-accessed records from Mantle.
 - When the data is returned from Mantle, it is used to update the existing, corresponding reactive PostModel object, which in turn triggers Vue's UI updates. 
 
-So accessing `posts[id].title` will show an empty string in your vue template until it manages to get the data back from the server, at which point that beautiful Vue renderer will update the UI with the value. That's not ideal, so there are lots of helpers built in to make the user experience even better. 
+So accessing `posts[id].title` will show an empty string in your vue template until it manages to get the data back from the server, at which point that beautiful Vue renderer will update the UI with the value. That's not ideal, so there are lots of helpers built in to make the user experience even better, such as a `_loaded` bool. 
 
 ## Setup
 
@@ -151,7 +173,7 @@ import PostModel from '@/data/models/PostModel'; //wherever your model files fro
 In your Vue setup or elsewhere, access a data collection like so: 
 
 ```
-    const PostData = Database[PostModel.name];
+    const posts = Database[PostModel.name];
 ```
 
 ### Methods
@@ -170,6 +192,14 @@ This does not return the actual data for the matches, but rather the ids of any 
 ---
 
 `contains` NOT IMPLEMENTED - fuzzy search - //TODO implement this, already in Mantle
+
+---
+
+`startswith` NOT IMPLEMENTED 
+
+---
+
+`endswith` NOT IMPLEMENTED
 
 ---
 
@@ -211,13 +241,29 @@ Dev story: I formerly had the no-parameter version of this do what `all` does, n
 
 Pretty straightforward, you can add records locally to the Database for this Model. 
 
-*Not entirely implemented yet.* 
+---
 
-//TODO Some basic data validation can be had here also, knowing things like the nullability of the C# models to determine if a property is optional, etc. Basic validation decorators can be translated down for Crust also. Create/Update really isn't fleshed out yet in this go, but I have a lot of previous code to pull in here yet.
+`save(id/data)`
+- `id/data` can be the id or the actuall record reference
+
+Sends request to Mantle to add or update this record. 
+
+If data is passed with no Id, it's an add. If an Id is passed, or data is passed with an Id, it will attempted an update. 
 
 ---
 
-`update(id, data)` not implemented yet.  
+`remove(id/reference)`
+- `id` can be the id or the actuall record reference
+
+Removes the record from the local Database. 
+
+---
+
+`delete(id/reference)`
+- `id` can be the id or the actuall record reference
+
+Sends request to Mantle to delete the record. Also removes it from the local Database 
+
 
 ### Properties
 
@@ -269,6 +315,8 @@ Returns a promise object, created from `Promise.All` using every outstanding pro
 
 Returns an array of every outstanding promise for this Model.
 
+
+
 ## Model object
 
 ```
@@ -277,7 +325,7 @@ const post = Database[PostModel.name][postId];
 
 Now that you have your model object, what do you do with it? 
 
-Any property defined by your exported C# Model from Mantle will be enumerable and accessible. Properties for related models are seamlessly accessed from the Database object automatically based on their Foreign Key. Just drill into your model object how you like and the data will be gathered for you.
+Any property defined by your exported C# Model from Mantle will be enumerable and accessible. Properties for related models are seamlessly accessed from the Database object automatically based on their Foreign Key, similar to how Entity Framework navigates between records. Just drill into your model object how you like and the data will be gathered for you.
 
 There are a few extra properties and methods to help you out.
 
@@ -291,7 +339,9 @@ No parameters, no return. Pokes the reactive model for sticky situations. I have
 
 `_populate(record)` 
 
-Takes a naked object of property:values (such as that returned from Mantle) and populates each model property. This does all the wiring for relationships and handles any data-type translations for those non-js-standard data types, such as guids, bit-arrays, and points.
+Takes a naked object of property:values (such as that returned from Mantle) and populates each model property. This may be very different from values seen through direct proeprty getting and setting. 
+
+This does all the wiring for relationships and handles any data-type translations for those non-js-standard data types, such as guids, bit-arrays, flags, and points. 
 
 You shouldn't be using this directly very often, Mantle should be populating your data automatically.
 
@@ -303,6 +353,32 @@ Returns the current values for the record, converted back to formats ready to be
 
 Again, you shouldn't be using this directly very often, mostly useful for debugging.
 
+---
+
+
+`_save()`
+
+If you're editing a record, this will ask Mantle to update it. 
+
+If you're creating a new record, this will ask Mantle to save it. **Do not set the id** - if the id is set, it will try to update a record with that id. Let your RDB provide the primary keys for new records. 
+
+If this model is a data transfer object, it will bypass the local Database and hit the route specified in the model definition. See Mantle DTO (TODO link this)
+
+TODO: if there's a related DB model for the DTO, refresh populate the Database automagically. 
+
+---
+
+`remove()`
+
+Removes this record from the local Database. 
+
+---
+
+`delete()`
+
+Sends request to Mantle to delete this record. Also removes it from the local Database 
+
+
 
 
 ### Properties
@@ -310,37 +386,80 @@ Again, you shouldn't be using this directly very often, mostly useful for debugg
 
 `_loaded`
 
-Returns a bool, guess what for? This is how Database knows if it needs to fetch something. Not reactive, use for immediate checking.
+Returns a bool if this record has been loaded. This is how Database identifies if a record needs fetched or if the local data is ready to be used.
+
+You'll use this extensively with related objects to check if the related object is ready to use. 
+
+```
+<div v-if="post.author._loaded">
+    <span>{{post.author.name}}</span>
+</div>
+```
+
+Author's log, stardate 184.32.8: TODO It would be nice to be able to not have to wrap these. You can technically get away with a single level, as the properties will all just be empty (null, etc). I think I have a way to accomplish this, just need to try it out.
 
 ---
 
 `_loader`
 
-Returns a promise that gets resolved once the model is loaded with data via `_populate`. Great for hiding UI elements until the record is ready to roll. 
+Returns a promise that gets resolved once the model is loaded with data via `_populate`. Useful for logic around records in your setup.
 
 ---
 
 `_fetching` 
 
-Returns a bool, indicating if this record is in the process of fetching data from Mantle
+Returns a bool, indicating if this record is in the process of fetching data from Mantle.
 
 ---
 
 `_error`
 
-Returns false, or an error object. The error object is not implemented yet, so will always be false currently.
+Returns a bool, indicating if there are any errors on this record. 
+
+**TODO**: Currently not syncing correctly with the `_errors` object, use instead:
+
+```
+Object.keys(record._errors).length
+```
  
+---
+
+`_errors`
+
+An object whose keys are any fields with a validation error. Each value is an array of error objects.
+
+This is only updated when `_validate` method is called on the record. 
+
+TODO: need add error method to shortcut the complex `_errors` object structure (add key, array if not existing, add object of format). Maybe codify the error object specifically. 
+
+---
+
+`_modified`
+
+Returns a bool, indicating if this record has been changed locally since it was loaded. **Fair warning:** I haven't tested this much yet. 
+
 ---
 
 `_values`
 
-Gives you a naked object of property:values for this record. If you're using this a bunch, you're probably doing it wrong. Just access the properties directly and let the proxy do its thing. 
+These are vue `ref` (or `shallowRef`, when an enumerable data type) references to the values. You can use Vue's `unref` to get the raw value from these.
+
+The one place this is particularly useful: watches. Rather than wraping values from properties in `ref`, get the `_values` of that property:
+
+```
+watch(posts._values.comments, () => { /* Do something when posts.comments changes */ });
+
+```
+
+Otherwise, using this a bunch probably means you're overcomplicating matters. Just access the properties directly and let the proxy do its thing. 
 
 ---
 
 `_toReactive` 
 
 Returns a Vue shallowRef wrap of the record. Usually not necessary - because object properties are pointers, simply referring to the properties directly covers most scenarios. This is mostly used for some tricky stuff in the JS of more complex applications. (TODO Get some examples in here, ya bonehead. This description doesn't help anyone.)
+
+Actually, I haven't had call to use this since constructing this library. Reactivity seems to be good already. TODO probably delete? 
 
 
 
