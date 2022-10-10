@@ -301,7 +301,7 @@ A Vue ref to the number of ids currently in the `Database[Model]`. Most often us
 
 `loaded`
 
-A Vue ref to the current state of the `Database[Model]`, which is true if all known record ids have been loaded. This is actually unlikely to be useful to you, you probably want the individual model record's `.loaded` property.
+A Vue ref to the current state of the `Database[Model]`, which is true if all known record ids have been loaded. This is actually unlikely to be useful to you, you probably want the individual model record's `._loaded` property.
 
 ---
 
@@ -368,13 +368,13 @@ TODO: if there's a related DB model for the DTO, refresh populate the Database a
 
 ---
 
-`remove()`
+`_remove()`
 
 Removes this record from the local Database. 
 
 ---
 
-`delete()`
+`_delete()`
 
 Sends request to Mantle to delete this record. Also removes it from the local Database 
 
