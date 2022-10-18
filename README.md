@@ -362,7 +362,7 @@ If you're editing a record, this will ask Mantle to update it.
 
 If you're creating a new record, this will ask Mantle to save it. **Do not set the id** - if the id is set, it will try to update a record with that id. Let your RDB provide the primary keys for new records. 
 
-If this model is a data transfer object, it will bypass the local Database and hit the route specified in the model definition. See Mantle DTO (TODO link this)
+If this model is a data transfer object, it will bypass the local Database and hit the route specified in the model definition. See (Mantle DTO)[https://github.com/freer4/ef-vue-mantle] 
 
 TODO: if there's a related DB model for the DTO, refresh populate the Database automagically. 
 
@@ -437,6 +437,8 @@ TODO: need add error method to shortcut the complex `_errors` object structure (
 `_modified`
 
 Returns a bool, indicating if this record has been changed locally since it was loaded. **Fair warning:** I haven't tested this much yet. 
+
+TODO: this has an issue where initial setting of FK arrays within populate is async thanks to the watch, so it triggers _modified
 
 ---
 
