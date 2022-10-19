@@ -180,18 +180,26 @@ In your Vue setup or elsewhere, access a data collection like so:
 
 These methods are available on your `Database[Model]` object
 
+
+#### Search and sort methods 
 ---
 
 `equals(prop, spec, subset = false)`
 - `prop` (property) is a string of the dot-notation property path you want to match on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to do with that path and setup the EF Core query appropriately. 
-- `spec` is the value you are searching for. For now, all matches are case-insensitive
+- `spec` is the value you are searching for. For now, all matches are case-insensitive. This is a full-match.
 - `subset` is optional, and takes an array of ids. If passed, the return will only include any of these ids that matched the query, rather than all ids returned by the API call. 
 
-This does not return the actual data for the matches, but rather the ids of any matching records. The results of the query are remembered to prevent repeat API calls.
+Returns an `indexer` object, see below
 
 ---
 
-`contains` NOT IMPLEMENTED - fuzzy search - //TODO implement this, already in Mantle
+`contains(prop, spec, subset = false)`
+- `prop` (property) is a string of the dot-notation property path you want to match on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to do with that path and setup the EF Core query appropriately. 
+- `spec` is the value you are searching for. For now, all matches are case-insensitive. This is a partial match.
+- `subset` is optional, and takes an array of ids. If passed, the return will only include any of these ids that matched the query, rather than all ids returned by the API call. 
+
+Returns an `indexer` object, see below
+
 
 ---
 
@@ -208,12 +216,34 @@ This does not return the actual data for the matches, but rather the ids of any 
 - `direction` (default 1) 1 = ascending, 0 = descending //TODO check if I wrote that backwards lol 
 - `subset` is optional, and takes an array of ids. If passed, the return will be an array of only these ids, but reordered, rather than all of the ordered ids for a given property. 
 
-This does not return the actual data for the set, but rather the ids of the data type in the order desired. This is supremely useful for infinite-scroll table/list views, where you can reorder on any property without needing to load the data, then load only the rows currently visible to the user. //TODO add example component for inifnite scroll, lazy-load list view.
+Returns an `indexer` object, see below
 
 Once this is loaded up, it doesn't need to be fetched again unless the data changes. Instead, it saves the ordered list of ids locally like an index. Subset ordering will then use an existing index to reorder the subset on the front end, avoiding extra calls all the way back to the DB just to sort. If the ascending or descending is asked for and the inverse is already indexed, Crust will just invert it.
 
 The less waiting for the server our UI needs to do, the better our UX can be.
 
+
+---
+
+#### The indexer object
+
+**TODO** This is only mildly tested and might be a bit wonky yet
+
+Any search or sort function above returns a special `indexer` object, which is an extension of Array. There are only a few things here to concern yourself with. 
+
+You can chain together more of the above search and sort functions, which will pass the result of each step into the subset property of the next. Essentially allowing you to sort and filter repeatedly.
+
+The `.loader` property is a promise, which resolves when the API returns successfully. 
+
+If you just want an array of ids, call the `.toArray()` method. If you do this before the API comes back it'll be empty, so wait for the loader.
+
+If you want a reactive array of ids, call the `.toReactive()` method, which returns a reactive-wrapped array
+
+If you want a database collection from, call instead the `.toCollection()`, which will give you an array of records. Like `.toArray()` you'll need to wait for the loader. 
+
+**TODO** is there some reason I don't have a reactive collection here? Infinite loop maybe? Should at least be able to force populate the root array with data when it resolves...
+
+---
 ---
 
 `all()`
