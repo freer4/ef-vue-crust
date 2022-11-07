@@ -213,7 +213,7 @@ Returns an `indexer` object, see below
 
 `orderBy(prop, direction, subset=false)`
 - `prop` (property) is a string of the dot-notation property path you want to order this model on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to with that path and return a list of ids ordered by your desired property. 
-- `direction` (default 1) 1 = ascending, 0 = descending //TODO check if I wrote that backwards lol 
+- `direction` (default 1) 1 = ascending, 2 = descending 
 - `subset` is optional, and takes an array of ids. If passed, the return will be an array of only these ids, but reordered, rather than all of the ordered ids for a given property. 
 
 Returns an `indexer` object, see below
