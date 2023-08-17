@@ -408,7 +408,11 @@ Removes this record from the local Database.
 
 Sends request to Mantle to delete this record. Also removes it from the local Database 
 
+---
 
+`_typeof(prop)`
+
+Returns the type of the passed property
 
 
 ### Properties
