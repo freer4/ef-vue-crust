@@ -1,7 +1,7 @@
 {
   "name": "ef-vue-crust",
   "type": "module",
-  "version": "1.0.56",
+  "version": "1.0.58",
   "description": "Allows Vue3 to communicate with Entity Framework Core data models via convention",
   "main": "index.js",
   "exports": {
