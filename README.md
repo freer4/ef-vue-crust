@@ -51,25 +51,47 @@ I will endeavor to get better performance benchmarks to demonstrate, but for thi
 - Individual client users have access to at most tens- or maybe hundreds- of thousands of records at any given time, but preferably far fewer
 
 
-## Overview
+## Connection object
 
-### Connection
+Using Axios and environment settings, the Crust `Connection` object knows where and how to find the Mantle endpoints. This also includes some token handling for JWT authentication. **TODO** There is work being done to make this smarter, allowing authentication to be abstracted/passed in 
 
-Using Axios and environment settings, Crust Connection object knows where and how to find the Mantle endpoints. This also includes some token handling for JWT authentication. 
+## Session object
 
-### Session
+In conjunction with `Connection`, the Crust `Session` object is a simple current-user-state interface for keeping track of... session. I don't know what else I can tell you about session. Properties added to this object are also stored in browser session and retrieved on page load. 
 
-In conjunction with Connection, Crust Session object is a simple current-user-state interface for keeping track of... session. I don't know what else I can tell you about session.
+---
 
-### Database
+`_set(session)`
+- `session` is an object of key value pairs you wish to store at the session level. A key called "token" will be used by `Connection` for the authorization header, and its presence determines if a user is "logged in"
+
+---
+
+`_unset()`
+
+No parameters.
+
+Clears out the `Session` and "logs out" the user.
+
+---
+
+`_isLoggedIn()`
+
+No parameters.
+
+Returns a bool 
+
+
+## Database
 
 The Crust Database is a proxy that handles dot-notation access to the entire data structure defined by your Mantle model exports.
+
+**Example:**
 
 > posts[id].comments[1].author.friends[6].displayName
 
 This juggles between existing data in memory and asking for data from Mantle through the Connection object and the promises it returns. It's all Vue refs and custom proxies, allowing you to ask for data that doesn't exist in the browser yet, and letting Vue reactivity to do its thing without further configuration or worry for you, the developer. 
 
-### Data types
+## Data types
 
 Custom data types can be defined to allow standardized interaction with .Net data types. 
 
@@ -101,7 +123,7 @@ public int Markings { get; set; } = 0; //whatever number property you're using t
 
 - Point: an object with lattidue and longitude properties. This will likely be extended in the future, but we've used (with a custom JSON formatter on the .Net end) it to cleanly transport Point class data between EFCore models and Vue... views... without needing futher intermediary view models and such with individual lat/long properties defined.  _out simply returns an object with lattidue and longitude properties.
 
-#### Custom data types
+### Custom data types
 
 You can add your own data types as needed. Put these in a directory named "data-types", adjacent to the directories for models, unums, and dtos output by Mantle. 
 
@@ -113,7 +135,7 @@ In Mantle, decorate the property like this:
 
 This will add an include for your custom data-type definition `SomeType`, looking for `/path/to/your/data/data-type/some-type.js`
 
-### Quick example
+## Quick data access example:
 ```
 <script>
 import {Database} from 'ef-vue-crust';
@@ -164,27 +186,35 @@ VUE_APP_MANTLE_URL=https://localhost:7081/
 
 ## Database object
 
-Include the `Database` object from 'ef-vue-crust' and any of your models that were created by Mantle. 
+```
+import { Database } from 'ef-vue-crust';
+```
+
+This is the object used to access all local "tables". Access is handled by proxies, creating tables on the fly the first time a user attempts to access them. 
+
+---
+
+## Table object
+
+"Tables" are local collections of your models, accessed via convention through the Database object. 
+
+A simple example
+
 ```
 import { Database } from 'ef-vue-crust';
 import PostModel from '@/data/models/PostModel'; //wherever your model files from Mantle live
+
+const posts = Database[PostModel.name];
 ```
 
-In your Vue setup or elsewhere, access a data collection like so: 
+`posts` is a table object full of handy methods and properties. Access a record by id like `posts[id]` and a proxy will return the appropriate Model object, requesting data directly from Mantle if it hasn't been loaded yet.  
 
-```
-    const posts = Database[PostModel.name];
-```
+### Table Methods
 
-### Methods
-
-These methods are available on your `Database[Model]` object
-
-
-#### Search and sort methods 
+#### Search and sort methods (apply to both Table and Indexer objects)
 ---
 
-`equals(prop, spec, subset = false)`
+`_equals(prop, spec, subset = false)`
 - `prop` (property) is a string of the dot-notation property path you want to match on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to do with that path and setup the EF Core query appropriately. 
 - `spec` is the value you are searching for. For now, all matches are case-insensitive. This is a full-match.
 - `subset` is optional, and takes an array of ids. If passed, the return will only include any of these ids that matched the query, rather than all ids returned by the API call. 
@@ -193,7 +223,7 @@ Returns an `indexer` object, see below
 
 ---
 
-`contains(prop, spec, subset = false)`
+`_contains(prop, spec, subset = false)`
 - `prop` (property) is a string of the dot-notation property path you want to match on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to do with that path and setup the EF Core query appropriately. 
 - `spec` is the value you are searching for. For now, all matches are case-insensitive. This is a partial match.
 - `subset` is optional, and takes an array of ids. If passed, the return will only include any of these ids that matched the query, rather than all ids returned by the API call. 
@@ -203,15 +233,15 @@ Returns an `indexer` object, see below
 
 ---
 
-`startswith` NOT IMPLEMENTED 
+`_startsWith` NOT IMPLEMENTED 
 
 ---
 
-`endswith` NOT IMPLEMENTED
+`_endsWith` NOT IMPLEMENTED
 
 ---
 
-`orderBy(prop, direction, subset=false)`
+`_orderBy(prop, direction, subset=false)`
 - `prop` (property) is a string of the dot-notation property path you want to order this model on. This could be a property of the current model, i.e. `created`, or it could be a property on a related model, i.e. `categories.title`. Mantle will know what to with that path and return a list of ids ordered by your desired property. 
 - `direction` (default 1) 1 = ascending, 2 = descending 
 - `subset` is optional, and takes an array of ids. If passed, the return will be an array of only these ids, but reordered, rather than all of the ordered ids for a given property. 
@@ -222,100 +252,106 @@ Once this is loaded up, it doesn't need to be fetched again unless the data chan
 
 The less waiting for the server our UI needs to do, the better our UX can be.
 
-
 ---
 
-#### The indexer object
+#### Other Table methods
 
-**TODO** This is only mildly tested and might be a bit wonky yet
-
-Any search or sort function above returns a special `indexer` object, which is an extension of Array. There are only a few things here to concern yourself with. 
-
-You can chain together more of the above search and sort functions, which will pass the result of each step into the subset property of the next. Essentially allowing you to sort and filter repeatedly.
-
-The `.loader` property is a promise, which resolves when the API returns successfully. 
-
-If you just want an array of ids, call the `.toArray()` method. If you do this before the API comes back it'll be empty, so wait for the loader.
-
-If you want a reactive array of ids, call the `.toReactive()` method, which returns a reactive-wrapped array
-
-If you want a database collection from, call instead the `.toCollection()`, which will give you an array of records. Like `.toArray()` you'll need to wait for the loader. 
-
-**TODO** is there some reason I don't have a reactive collection here? Infinite loop maybe? Should at least be able to force populate the root array with data when it resolves...
-
----
----
-
-`all()`
+`_all()`
 
 No parameters.
 
 Returns a promise. 
 
-**USE. SPARINGLY.** This method *will* ask for the *entire* collection of available data from Mantle for this Model. This is very useful for small data collections that change enough to not make sense as an Enum, but static and universal enough that you might want to preload them immediately.
+**USE. SPARINGLY.** This method *will* ask for the *entire* collection of available data from Mantle for this Model. This is very useful for small data collections that change enough to not make sense as an Enum, but are static and universal enough that you might want to preload them immediately.
 
 ---
 
-`load(subset)`
+`_load(subset)`
 - `subset` an array of ids
 
-Similar to `.all()` but not as dangerous, you can pass a list of ids in and load data for that subset of the model. Great for pre-loading sub-data of a many-to- relationship for a given record - just pass the ids list, i.e. `Database[PostModel.name].load(myCurrentPost.commentsIds)`.
+Similar to `_all()` but not as dangerous, you can pass a list of ids in and load data for that subset of the model. Great for pre-loading sub-data of a many-to- relationship for a given record - just pass the ids list, i.e. `Database[PostModel.name].load(myCurrentPost.commentsIds)`.
 
-Dev story: I formerly had the no-parameter version of this do what `all` does, nice and succinct. I borked so many things by accident. Having `all` separate is a good thing.
-
----
-
-`add(id, data)`
-- `id` the id of the record you want to add. Must match the id type on the Model (int or guid)
-- `data` an object with the values for the corresponding properties on the Model. Extra properties are ignored.
-
-Pretty straightforward, you can add records locally to the Database for this Model. 
+If `subset` is not passed, it will attempt to load all records for known ids that are not yet loaded in this table. It does not ask Mantle for the full list of ids before doing so. 
 
 ---
 
-`save(id/data)`
-- `id/data` can be the id or the actuall record reference
+`_save(id/data)`
+- `id/data` can be the id or the actual record reference
 
 Sends request to Mantle to add or update this record. 
 
-If data is passed with no Id, it's an add. If an Id is passed, or data is passed with an Id, it will attempted an update. 
+If data is passed with no Id, it's an add. If an Id is passed, or data is passed with an Id, it will attempted an update. Mostly though, it's easier to use the
+`_save` method directly on the record itself. And don't loop - if you have many things to save at once, use `_saveAll`.
 
 ---
 
-`remove(id/reference)`
-- `id` can be the id or the actuall record reference
+`_add(id, data)`
+- `id` the id of the record you want to add. Must match the id type on the Model (int or guid)
+- `data` an object with the values for the corresponding properties on the Model. Extra properties are ignored.
 
-Removes the record from the local Database. 
-
----
-
-`delete(id/reference)`
-- `id` can be the id or the actuall record reference
-
-Sends request to Mantle to delete the record. Also removes it from the local Database 
-
-
-### Properties
-
-These properties are available on your `Database[Model]` object
+Adds records locally to the Database for this Model. 
 
 ---
 
-`keys` 
+`_saveAll(ids/references)`
+- `ids` an array of ids or actual model references (or even a mix). 
 
-A Vue reactive array of keys that already exist locally for this Model. Not something you're likely to use.
+Send the indicated records to Mantle to be saved. 
 
----
-
-`list`
-
-A Vue reactive array of keys that... wait we already have that? This is the more useful version, but use with caution. The first time this is accessed, it will quietly kick off an API call to get the list of every accessible id for this Model, and return the same internal Vue reactive array that `.keys` does. 
-
-**!important** use `.list` to see what record ids you have without loading up the data for said records. If you try to access the ids for a data collection through the individual Model objects (such as looping through the entire data array), the accessing of those Model objects will trigger their load from Mantle. 
+If `ids` parameter is omitted, all modified (including added) records for this table will be gathered and sent up. 
 
 ---
 
-`array`
+`_remove(id/reference)`
+- `id` can be the id or the actual record reference
+
+Removes the record from the local Database, but doesn't delete it from the server. 
+
+---
+
+`_delete(id/reference)`
+- `id` can be the id or the actual record reference
+
+Sends request to Mantle to delete the record. Also removes it from the local Database.
+
+---
+
+`_refresh(id/reference)`
+- `id` can be the id or the actual record reference
+
+Explicitly asks for this record from Mantle, even if you already have it loaded
+
+Returns a promise. 
+
+---
+
+`_refreshList()`
+
+No parameters.
+
+Manually refresh the list of all ids from Mantle. See Table `_list` property.
+
+
+
+### Table Properties
+
+`_keys` 
+
+A Vue reactive array of keys that *already exist locally* for this Model. You probably want the `_list` property.
+
+---
+
+`_list`
+
+A Vue reactive array of keys that... wait we already have that? This is the more useful version, but use with caution. The first time this is accessed, it will quietly kick off an API call to get the list of every accessible id for this Model, and return the same internal Vue reactive array that `_keys` does. 
+
+See `_refreshList()` table method for refreshing the values here. 
+
+**!important** `_list` is what you use to see what record ids you have without loading up the full data for said records. If you try to access the records in the Table through the individual Model objects (such as looping through the entire Table), the accessing of those Model objects will trigger their load from Mantle. 
+
+---
+
+`_array`
 
 A Vue reactive array of the available Model data. This is what you will pass to your template most often. New records are automatically pushed to it, giving you that awesome Vue reactivity downstream. 
 
@@ -323,27 +359,57 @@ Dev story: this is accessed through a property instead of being the default retu
 
 ---
 
-`length`
+`_length`
 
-A Vue ref to the number of ids currently in the `Database[Model]`. Most often used after `.list`, ensuring all current ids have been fetched from Mantle, regardless of if the records have been pulled down yet.
-
----
-
-`loaded`
-
-A Vue ref to the current state of the `Database[Model]`, which is true if all known record ids have been loaded. This is actually unlikely to be useful to you, you probably want the individual model record's `._loaded` property.
+A Vue ref to the number of ids currently in the `Database[Model]`. Most often used after `_list`, ensuring all current ids have been fetched from Mantle, regardless of if the records have been pulled down yet.
 
 ---
 
-`loader`
+`_loaded`
+
+A Vue ref to the current state of the `Database[Model]`, which is true if all known record ids have been loaded. This is actually unlikely to be useful to you, you probably want the individual record's `_loaded` property.
+
+---
+
+`_loader`
 
 Returns a promise object, created from `Promise.All` using every outstanding promise for this Model.
 
 ---
 
-`promises`
+`_promises`
 
-Returns an array of every outstanding promise for this Model.
+Returns a read-only array of every outstanding promise for this Model.
+
+
+## Indexer object
+
+**TODO** This is only mildly tested and might be a bit wonky yet
+
+The `Indexer` object is actually an extension of Array. It is used to hold index lists and can chain additional search and sort functions, which will pass the result of each step into the subset property of the next.
+
+### Indexer properties
+
+`_loader` 
+
+A promise, which resolves when Mantle responds to a sort search or order request. 
+
+`_loaded`
+
+A bool indicator of the status of _loader **TODO** don't rely on this property currently, buggy. 
+
+
+### Indexer methods
+
+`_keys()`
+
+An array of all the ids in the Indexer object
+
+`_list()`
+
+A reactive array of all the ids in the 
+
+`_array()`
 
 
 
@@ -424,6 +490,7 @@ Returns a bool if this record has been loaded. This is how Database identifies i
 
 You'll use this extensively with related objects to check if the related object is ready to use. 
 
+**Example:**
 ```
 <div v-if="post.author._loaded">
     <span>{{post.author.name}}</span>
@@ -436,13 +503,13 @@ Author's log, stardate 184.32.8: TODO It would be nice to be able to not have to
 
 `_loader`
 
-Returns a promise that gets resolved once the model is loaded with data via `_populate`. Useful for logic around records in your setup.
+Returns a promise that gets resolved once the model is loaded with data via `_populate` - which is what it does internally when fetching from Mantle. Useful for logic around records in your setup. 
 
 ---
 
 `_fetching` 
 
-Returns a bool, indicating if this record is in the process of fetching data from Mantle.
+Returns a bool, indicating if this record is in the process of fetching data from Mantle
 
 ---
 
@@ -493,9 +560,9 @@ Otherwise, using this a bunch probably means you're overcomplicating matters. Ju
 
 `_toReactive` 
 
-Returns a Vue shallowRef wrap of the record. Usually not necessary - because object properties are pointers, simply referring to the properties directly covers most scenarios. This is mostly used for some tricky stuff in the JS of more complex applications. (TODO Get some examples in here, ya bonehead. This description doesn't help anyone.)
+Returns a reactive object of this model. 
 
-Actually, I haven't had call to use this since constructing this library. Reactivity seems to be good already. TODO probably delete? 
+**TODO** I think this is vestigial, a holdover from a previous version, so *do not use this*. You should be able to reference the properties directly from the model object. Need to test my assumption.
 
 
 
