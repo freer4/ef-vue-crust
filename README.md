@@ -177,7 +177,7 @@ So accessing `posts[id].title` will show an empty string in your vue template un
 
 You'll have to have set up Mantle already for Crust to do anything of importance. Otherwise, you won't have any model objects or API endpoints to work with.
 
-`Connection` object looks for a `VUE_APP_MANTLE_URL` setting to know who to talk to, so add the path of your Mantle API root in your .env files: 
+`Connection` object looks for a `VUE_APP_MANTLE_URL` (or VITE_MANTLE_URL if using Vite) setting to know who to talk to, so add the path of your Mantle API root in your .env files: 
 
 ```
 VUE_APP_MANTLE_URL=https://localhost:7081/
